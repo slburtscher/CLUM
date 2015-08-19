@@ -11,10 +11,10 @@ import pandas as pd
 from pandas import DataFrame, Series
 import matplotlib.pyplot as plt
 import os
-import shutil
+#import shutil
 import zipfile
 import time
-import sys, select
+#import sys, select
 # import peakdetect
 
 # Grunddaten
@@ -41,11 +41,11 @@ def Archive_original_Datafiles(file,dataIndir, dataSAVE):
         subset =int(subset)+1
     #file nach dataOriginal zippen und *.CSV file löschen
     with zipfile.ZipFile(dataSAVE+'/'+archivefile, "w", zipfile.ZIP_DEFLATED) as zip_file:
-        zip_file.write(dataIndir+'\\'+file, file)  
+        zip_file.write(dataIndir+'\\'+file, archivefile.replace('.zip','.CSV'))  
     os.remove(dataIndir+'\\'+file) 
     
     print(archivefile)
-    return 
+    return archivefile
     
 def Archive_original_Datafiles_unzip(file, dataIndir):
     ''' Archivierte Datenfiles *.zip in 'dataIndir' in *.CSV ENTzippt '''   
@@ -71,8 +71,8 @@ def Archive_original_Datafiles_unzip(file, dataIndir):
     return filename
     '''
     
-def Store_Peaks(Peak_data, hd5name, hd5directory):
-    #"write"
+def Store_to_HD5(Peak_data, hd5name, hd5directory):
+    ''' write Peak_data to hf5-file (hd5name) in hd5directory'''
     pd.set_option('io.hdf.default_format','table')
     with pd.HDFStore(hd5name,  mode='a') as store:
         store.append(hd5directory, Peak_data, data_columns= Peak_data.columns, format='table')
@@ -96,45 +96,62 @@ def Read_Peaks(hd5name,hd5directory):
 '''
 Beginn des Hauptprogramms
 '''
-
-while True:
-    for file in os.listdir(dataIndir):
+try:
+    while True:
+        for file in os.listdir(dataIndir):
+            
+             # zip-files in dataIndir (ehemalige) werden in CSV konvertiert 
+            if file.endswith('.zip'):
+                print(file)
+                file= Archive_original_Datafiles_unzip(file, dataIndir)
+                
+            if file.endswith(".CSV"):
+                print(file)
+            
+                # liest .CSV files in dataIndir
+                # %time Wall time: 18.6s, ohne index_col=.. Wall time: 18.5s
+                data = pd.read_table(dataIndir+'/'+file, sep=';', skiprows=7, 
+                         decimal =',', usecols= range(6),
+                         header=None, names =datanames, date_parser =date_converter_CLUM_v1,
+                         parse_dates=[0], index_col='time')
+                #sdata = data.to_period(freq='ms')
+                # zippt und archiviert die Datenfiles in 'dataOriginal'-Directory
+                archivefile=Archive_original_Datafiles(file,dataIndir, dataOriginal) 
+                
+                # Berechnen der maximalen Spannung und Richtung   
+                # Sig1 [N/mm2] = größere Hauptspannung von DMS1 und DMS2
+                # Sig_Phi [rad]
+                data['Sig1'] = DataFrame(np.sqrt((210000*data.DMS1)**2 + (210000*data.DMS2)**2), index=data.index)
+                data['SIG_Phi'] = DataFrame(np.arctan(data.DMS2/data.DMS1) + SIG_Phi_offset, index=data.index)
+                data.drop(['DMS1','DMS2'], axis=1, inplace=True)
+                
+                #stores data to evaluate to hd5 file
+                #Store_to_HD5(data, mastname +'_filtered_data.h5', 'peaks')
+                
+                #speichert Tabelle mit (Starttime, Endtime, Archivfilename) in DatafileTable.csv
+                Origfiledaten= np.array([data.index[0], data.index[-1], archivefile])
+                with open('DatafileTable.csv', 'a') as file:
+                    file.write(str(data.index[0])+' , ' + str(data.index[-1]) + ' , ' + archivefile+' \n')                
+                # sortieren der Tabelle und kontrollieren ob Daten(files) fehlen    
+                processedfiles = data = pd.read_table('DatafileTable.csv', sep=',', names =['startzeit', 'endzeit', 'Archivname'], parse_dates=[0, 1], index_col='startzeit')
+                if not processedfiles.index.is_monotonic_increasing:
+                    if not processedfiles.index.is_unique:
+                        processedfiles.index.duplicated()
+                        print('WARNUNG: Zwei gleiche Beginnzeiten von Datenfiles analysiert')
+                    processedfiles.index.order(return_indexer= True, ascending=True)
+                StartMonitoring =processedfiles.index[0]
+                for start in processedfiles.index:
+                    timedelta = processedfiles.endzeit[start]- processedfiles.index[start]
+                     
+                    
+                #Winddaten alle 10 min
+                # data.resapmle...
         
-         # zip-files in dataIndir (ehemalige) werden in CSV konvertiert 
-        if file.endswith('.zip'):
-            print(file)
-            file= Archive_original_Datafiles_unzip(file, dataIndir)
-            
-        if file.endswith(".CSV"):
-            print(file)
-        
-            # liest .CSV files in dataIndir
-            # %time Wall time: 18.6s, ohne index_col=.. Wall time: 18.5s
-            data = pd.read_table(dataIndir+'/'+file, sep=';', skiprows=7, 
-                     decimal =',', usecols= range(6),
-                     header=None, names =datanames, date_parser =date_converter_CLUM_v1,
-                     parse_dates=[0], index_col='time')
-            #sdata = data.to_period(freq='ms')
-            # zippt und archiviert die Datenfiles in 'dataOriginal'-Directory
-            Archive_original_Datafiles(file,dataIndir, dataOriginal) 
-            
-            # Berechnen der maximalen Spannung und Richtung   
-            # Sig1 [N/mm2] = größere Hauptspannung von DMS1 und DMS2
-            # Sig_Phi [rad]
-            data['Sig1'] = DataFrame(np.sqrt((210000*data.DMS1)**2 + (210000*data.DMS2)**2), index=data.index)
-            data['SIG_Phi'] = DataFrame(np.arctan(data.DMS2/data.DMS1) + SIG_Phi_offset, index=data.index)
-            data.drop(['DMS1','DMS2'], axis=1, inplace=True)
-            
-            #Store_Peaks(data, mastname +'_filtered_data.h5', 'peaks')
-            
-            #Winddaten alle 10 min
-            # data.resapmle...
-    
-    if not os.listdir(dataIndir):
-        print('Waiting for Datafiles..., to terminate Program enter: quit')
-        
-        time.sleep(10)
-
+        if not os.listdir(dataIndir):
+            print('Waiting for Datafiles..., to stop Program press Control-c')
+            time.sleep(10)
+except KeyboardInterrupt:
+    print('interrupted!')
 '''
 
 
