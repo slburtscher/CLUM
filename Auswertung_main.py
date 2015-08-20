@@ -97,7 +97,7 @@ def Read_Peaks(hd5name,hd5directory):
 '''
 Beginn des Hauptprogramms
 '''
-# Einleden der Informationen zu den Daten die in einem früheren Lauf analysiert wurden falls diese vorhanden sind
+# Einlesen der Informationen zu den Daten die in einem früheren Lauf analysiert wurden falls diese vorhanden sind
 try:
     processedfiles = pd.read_table('DatafileTable.csv', sep=',', names =['startzeit', 'endzeit', 'Archivname'], parse_dates=[0, 1], index_col='startzeit')
 except:
