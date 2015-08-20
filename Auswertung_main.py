@@ -25,6 +25,7 @@ SIG_Phi_offset= 0  # Winkel zwischen DMS1 und Norden [rad]
 workdir=os.getcwd()
 dataIndir = workdir + '\\dataIn'
 dataOriginal = workdir + '\\dataOriginal'
+dataDuplikat = workdir + '\\dataDuplikat'
 datanames = ['time', 'wind_v', 'wind_Phi', 'Temp', 'DMS1', 'DMS2']
 
 def date_converter_CLUM_v1(x):
@@ -96,6 +97,12 @@ def Read_Peaks(hd5name,hd5directory):
 '''
 Beginn des Hauptprogramms
 '''
+# Einleden der Informationen zu den Daten die in einem früheren Lauf analysiert wurden falls diese vorhanden sind
+try:
+    processedfiles = pd.read_table('DatafileTable.csv', sep=',', names =['startzeit', 'endzeit', 'Archivname'], parse_dates=[0, 1], index_col='startzeit')
+except:
+    print('Es wurden keine zuvoher analysierten Daten gefunden')
+    processedfiles=DataFrame()
 try:
     while True:
         for file in os.listdir(dataIndir):
@@ -114,38 +121,53 @@ try:
                          decimal =',', usecols= range(6),
                          header=None, names =datanames, date_parser =date_converter_CLUM_v1,
                          parse_dates=[0], index_col='time')
-                #sdata = data.to_period(freq='ms')
-                # zippt und archiviert die Datenfiles in 'dataOriginal'-Directory
-                archivefile=Archive_original_Datafiles(file,dataIndir, dataOriginal) 
-                
-                # Berechnen der maximalen Spannung und Richtung   
-                # Sig1 [N/mm2] = größere Hauptspannung von DMS1 und DMS2
-                # Sig_Phi [rad]
-                data['Sig1'] = DataFrame(np.sqrt((210000*data.DMS1)**2 + (210000*data.DMS2)**2), index=data.index)
-                data['SIG_Phi'] = DataFrame(np.arctan(data.DMS2/data.DMS1) + SIG_Phi_offset, index=data.index)
-                data.drop(['DMS1','DMS2'], axis=1, inplace=True)
-                
-                #stores data to evaluate to hd5 file
-                #Store_to_HD5(data, mastname +'_filtered_data.h5', 'peaks')
-                
-                #speichert Tabelle mit (Starttime, Endtime, Archivfilename) in DatafileTable.csv
-                Origfiledaten= np.array([data.index[0], data.index[-1], archivefile])
-                with open('DatafileTable.csv', 'a') as file:
-                    file.write(str(data.index[0])+' , ' + str(data.index[-1]) + ' , ' + archivefile+' \n')                
-                # sortieren der Tabelle und kontrollieren ob Daten(files) fehlen    
-                processedfiles = data = pd.read_table('DatafileTable.csv', sep=',', names =['startzeit', 'endzeit', 'Archivname'], parse_dates=[0, 1], index_col='startzeit')
-                if not processedfiles.index.is_monotonic_increasing:
-                    if not processedfiles.index.is_unique:
-                        processedfiles.index.duplicated()
-                        print('WARNUNG: Zwei gleiche Beginnzeiten von Datenfiles analysiert')
-                    processedfiles.index.order(return_indexer= True, ascending=True)
-                StartMonitoring =processedfiles.index[0]
-                for start in processedfiles.index:
-                    timedelta = processedfiles.endzeit[start]- processedfiles.index[start]
-                     
+         
+                if data.index[0] in processedfiles.index:
+                    #in duplikat archivieren
+                    archivefile=Archive_original_Datafiles(file,dataIndir, dataDuplikat) 
+                    print('Daten aus diesem Zeitraum wurden bereits analysiert')
+                else:
+                                  #sdata = data.to_period(freq='ms')
+                    # zippt und archiviert die Datenfiles in 'dataOriginal'-Directory
+                    archivefile=Archive_original_Datafiles(file,dataIndir, dataOriginal) 
+    
+                    # Wurde diese Zeitreihe schon eingelesen/Duplikat? Es wird nur die erste Datetime verglichen
+                    #speichert Tabelle mit (Starttime, Endtime, Archivfilename) in DatafileTable.csv
+                    processedfileDaten= DataFrame([data.index[0], data.index[-1], archivefile])
+                    processedfileDaten.to_csv('DatafileTable.csv', mode='a', sep=',', header= False, index=False, line_terminator='\n')
+                    processedfiles.append(processedfileDaten)
+                    #with open('DatafileTable.csv', 'a') as file:
+                    #    file.write(str(data.index[0])+' , ' + str(data.index[-1]) + ' , ' + archivefile+' \n') 
+                        
+                    # Berechnen der maximalen Spannung und Richtung   
+                    # Sig1 [N/mm2] = größere Hauptspannung von DMS1 und DMS2
+                    # Sig_Phi [rad]
+                    data['Sig1'] = DataFrame(np.sqrt((210000*data.DMS1)**2 + (210000*data.DMS2)**2), index=data.index)
+                    data['SIG_Phi'] = DataFrame(np.arctan(data.DMS2/data.DMS1) + SIG_Phi_offset, index=data.index)
+                    data.drop(['DMS1','DMS2'], axis=1, inplace=True)
                     
-                #Winddaten alle 10 min
-                # data.resapmle...
+                    #stores data to evaluate to hd5 file
+                    #Store_to_HD5(data, mastname +'_filtered_data.h5', 'peaks')
+                    
+                    '''               
+                    # sortieren der Tabelle und kontrollieren ob Daten(files) fehlen    
+                    processedfiles = pd.read_table('DatafileTable.csv', sep=',', names =['startzeit', 'endzeit', 'Archivname'], parse_dates=[0, 1], index_col='startzeit')
+                    if not processedfiles.index.is_monotonic_increasing:
+                        processedfiles.index.order(return_indexer= True, ascending=True)                    
+                        if not processedfiles.index.is_unique:
+                            processedfiles.reset_index(inplace=True)                        
+                            processedfiles.drop_duplicates(['startzeit','endzeit'], inplace=True)
+                            print('WARNUNG: Datenfiles mit gleichen Beginnzeiten - DUPLIKATE!')
+                        processedfiles.sort('startzeit', ascending=True, inplace=True)
+                        processedfiles.to_csv('DatafileTable.csv', mode='w', sep=',', header= False, index=False, line_terminator='\n')
+                    '''    
+                        
+    #                StartMonitoring =processedfiles.index[0]
+    #                    timedelta = processedfiles.endzeit[start]- processedfiles.index[start]
+                         
+                        
+                    #Winddaten alle 10 min
+                    # data.resapmle...
         
         if not os.listdir(dataIndir):
             print('Waiting for Datafiles..., to stop Program press Control-c')
