@@ -31,7 +31,11 @@ datanames = ['time', 'wind_v', 'wind_Phi', 'Temp', 'DMS1', 'DMS2']
 def date_converter_CLUM_v1(x):
     '''' Liest Datum und Zeit (mit Millisekunden) und konvertiert diese in das Datetime64[ns] Format'''
     return datetime.strptime(x, '%d.%m.%Y %H:%M:%S,%f')
-
+# 2014-11-07 13:09:18.990
+def date_converter_processedfiles_v1(x):
+    '''' Liest Datum und Zeit (mit Millisekunden) und konvertiert diese in das Datetime64[ns] Format'''
+    return datetime.strptime(x, '%Y-%m-d %H:%M:%S,%f')
+    
 def Archive_original_Datafiles(file,dataIndir, dataSAVE):
     ''' Datenfiles *.CSV in 'dataIndir' werden nach 'dataSAVE' verschoben und gezippt.  '''   
     archivefile = file.replace('.CSV','.zip')
@@ -99,10 +103,18 @@ Beginn des Hauptprogramms
 '''
 # Einlesen der Informationen zu den Daten die in einem früheren Lauf analysiert wurden falls diese vorhanden sind
 try:
-    processedfiles = pd.read_table('DatafileTable.csv', sep=',', names =['startzeit', 'endzeit', 'Archivname'], parse_dates=[0, 1], index_col='startzeit')
+    #processedfiles = pd.read_table('DatafileTable.csv', sep=',', names =['startzeit', 'endzeit', 'Archivname'], parse_dates=[0, 1], index_col='startzeit')
+    processedfiles = pd.read_table('DatafileTable.csv', sep=',', header=0, parse_dates=['startzeit', 'endzeit']) # , index_col='startzeit'
+    print('Die zuvor analysierten Daten werden weiterverwendet, die erste und letzte Datei sind:')
+    processedfiles.sort('startzeit', ascending=True)
+    #print('Die eingelesenen Daten sind im Zeitraum von   ', processedfiles.startzeit[0], '  bis   ', processedfiles.endzeit[-1])
+    #print(processedfiles.ix[-1,:])
 except:
-    print('Es wurden keine zuvoher analysierten Daten gefunden')
-    processedfiles=DataFrame()
+    print('Es wurden keine zuvor analysierten Daten gefunden')
+    processedfiles= DataFrame.from_dict({'startzeit': [], 'endzeit': [], 'Archivname': []}, orient='columns')    
+    processedfiles.to_csv('DatafileTable.csv', mode='a', sep=',', header= True, index=False, line_terminator='\n')
+    
+    #processedfiles=DataFrame(columns='startzeit','endzeit','Archivfile')
 try:
     while True:
         for file in os.listdir(dataIndir):
@@ -121,24 +133,32 @@ try:
                          decimal =',', usecols= range(6),
                          header=None, names =datanames, date_parser =date_converter_CLUM_v1,
                          parse_dates=[0], index_col='time')
-         
-                if data.index[0] in processedfiles.index:
+                
+                
+
+                    
+                if data.index[0] in processedfiles.startzeit:
                     #in duplikat archivieren
                     archivefile=Archive_original_Datafiles(file,dataIndir, dataDuplikat) 
                     print('Daten aus diesem Zeitraum wurden bereits analysiert')
                 else:
-                                  #sdata = data.to_period(freq='ms')
+                    #sdata = data.to_period(freq='ms')
                     # zippt und archiviert die Datenfiles in 'dataOriginal'-Directory
                     archivefile=Archive_original_Datafiles(file,dataIndir, dataOriginal) 
     
                     # Wurde diese Zeitreihe schon eingelesen/Duplikat? Es wird nur die erste Datetime verglichen
                     #speichert Tabelle mit (Starttime, Endtime, Archivfilename) in DatafileTable.csv
-                    processedfileDaten= DataFrame([data.index[0], data.index[-1], archivefile])
+                    processedfileDaten= DataFrame.from_dict({'startzeit': [data.index[0]], 'endzeit': [data.index[-1]], 'Archivname': [archivefile]}, orient='columns',dtype=['Timestamp', 'Timestamp', 'str'])
                     processedfileDaten.to_csv('DatafileTable.csv', mode='a', sep=',', header= False, index=False, line_terminator='\n')
-                    processedfiles.append(processedfileDaten)
-                    #with open('DatafileTable.csv', 'a') as file:
-                    #    file.write(str(data.index[0])+' , ' + str(data.index[-1]) + ' , ' + archivefile+' \n') 
-                        
+                    processedfiles = processedfiles.append(processedfileDaten, ignore_index=True)
+                    '''                    
+                    processedfileDaten= np.array([data.index[0], data.index[-1], archivefile])                    
+                    with open('DatafileTable.csv', 'a') as file:
+                        file.write(str(data.index[0])+' , ' + str(data.index[-1]) + ' , ' + archivefile+' \n') 
+                    processedfiles =pd.read_table('DatafileTable.csv')
+                    '''                 
+                    
+                    
                     # Berechnen der maximalen Spannung und Richtung   
                     # Sig1 [N/mm2] = größere Hauptspannung von DMS1 und DMS2
                     # Sig_Phi [rad]
