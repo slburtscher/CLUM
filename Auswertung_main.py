@@ -148,7 +148,7 @@ try:
     
                     # Wurde diese Zeitreihe schon eingelesen/Duplikat? Es wird nur die erste Datetime verglichen
                     #speichert Tabelle mit (Starttime, Endtime, Archivfilename) in DatafileTable.csv
-                    processedfileDaten= DataFrame.from_dict({'startzeit': [data.index[0]], 'endzeit': [data.index[-1]], 'Archivname': [archivefile]}, orient='columns',dtype=['Timestamp', 'Timestamp', 'str'])
+                    processedfileDaten= DataFrame.from_dict({'startzeit': [data.index[0]], 'endzeit': [data.index[-1]], 'Archivname': [archivefile]}, orient='columns')
                     processedfileDaten.to_csv('DatafileTable.csv', mode='a', sep=',', header= False, index=False, line_terminator='\n')
                     processedfiles = processedfiles.append(processedfileDaten, ignore_index=True)
                     '''                    
