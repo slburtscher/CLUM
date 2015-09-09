@@ -191,8 +191,8 @@ try:
                     # (1) bestimmen der 2sec Boe = Mittelwert innerhalb von 2 sec
                     wind2s = wind.resample('2s', how = 'mean')
                     # (2) Max der Boen innerhalb von 10min (hier wird ein Wert alle 2 min geschrieben)
-                    wind2min = wind2s.groupby(pd.TimeGrouper('2min')).agg(lambda wind2s: wind2s.loc[wind2s['wind_v'].idxmax(), :])
-                    wind2min.to_csv('wind2min.csv', mode='a', sep=',', header= False, index=True, line_terminator='\n')
+                    wind1min = wind2s.groupby(pd.TimeGrouper('1min')).agg(lambda wind2s: wind2s.loc[wind2s['wind_v'].idxmax(), :])
+                    wind1min.to_csv('wind1min.csv', mode='a', sep=',', header= False, index=True, line_terminator='\n')
                     
         if not os.listdir(dataIndir):
             print('Waiting for Datafiles..., to stop Program press Control-c')
