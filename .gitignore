@@ -43,4 +43,4 @@ Temporary Items
 .apdisk
 *.CSV
 *.zip
-mydata2.h5
+*.h5
