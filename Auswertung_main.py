@@ -49,7 +49,7 @@ def Archive_original_Datafiles(file,dataIndir, dataSAVE):
         zip_file.write(dataIndir+'\\'+file, archivefile.replace('.zip','.CSV'))  
     os.remove(dataIndir+'\\'+file) 
     
-    print(archivefile)
+    #print(archivefile)
     return archivefile
     
 def Archive_original_Datafiles_unzip(file, dataIndir):
@@ -121,11 +121,11 @@ try:
             
              # zip-files in dataIndir werden in CSV konvertiert 
             if file.endswith('.zip'):
-                print(file)
+                #print(file)
                 file= Archive_original_Datafiles_unzip(file, dataIndir)
                 
             if file.endswith(".CSV"):
-                print(file)
+                #print(file)
             
                 # liest .CSV files von dataIndir
                 # %time Wall time: 18.6s, ohne index_col=.. Wall time: 18.5s
@@ -144,7 +144,8 @@ try:
                          parse_dates=[0], index_col='time')
                     # zippt und archiviert die Datenfiles in 'dataOriginal'-Directory
                     archivefile=Archive_original_Datafiles(file,dataIndir, dataOriginal) 
-    
+                    print(startzeit.index[0], file, '**OK***-> dataOriginal' , archivefile )
+                    
                     # Wurde diese Zeitreihe schon eingelesen/Duplikat? Es wird nur die erste Datetime verglichen
                     #speichert Tabelle mit (Starttime, Endtime, Archivfilename) in DatafileTable.csv
                     processedfileDaten= DataFrame.from_dict({'startzeit': [data.index[0]], 'endzeit': [data.index[-1]], 'Archivname': [archivefile]}, orient='columns')
@@ -195,13 +196,13 @@ try:
                 else:
                     #in duplikat archivieren
                     archivefile=Archive_original_Datafiles(file,dataIndir, dataDuplikat) 
-                    print('Datenfile', archivefile, 'wurde bereits analysiert und wird in dataDuplikat verschoben')
+                    print(startzeit.index[0],file, 'DOPPELT-> dataDuplikat', archivefile)
                     
         if not os.listdir(dataIndir):
             print('Waiting for Datafiles..., to stop Program press Control-c')
             time.sleep(10)
 except KeyboardInterrupt:
-    print('interrupted!')
+    print('interrupted bei Control-c!')
 '''
 
 
