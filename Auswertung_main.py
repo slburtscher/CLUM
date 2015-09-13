@@ -111,7 +111,7 @@ try:
     #print(processedfiles.ix[-1,:])
 except:
     print('Es wurden keine zuvor analysierten Daten gefunden')
-    processedfiles= DataFrame.from_dict({'startzeit': [], 'endzeit': [], 'Archivname': []}, orient='columns')    
+    processedfiles= DataFrame.from_dict({'startzeit': [ ], 'endzeit': [ ], 'Archivname': [ ]}, orient='columns')    
     processedfiles.to_csv('DatafileTable.csv', mode='a', sep=',', header= True, index=False, line_terminator='\n')
     
     #processedfiles=DataFrame(columns='startzeit','endzeit','Archivfile')
@@ -119,7 +119,7 @@ try:
     while True:
         for file in os.listdir(dataIndir):
             
-             # zip-files in dataIndir (ehemalige) werden in CSV konvertiert 
+             # zip-files in dataIndir werden in CSV konvertiert 
             if file.endswith('.zip'):
                 print(file)
                 file= Archive_original_Datafiles_unzip(file, dataIndir)
@@ -127,22 +127,21 @@ try:
             if file.endswith(".CSV"):
                 print(file)
             
-                # liest .CSV files in dataIndir
+                # liest .CSV files von dataIndir
                 # %time Wall time: 18.6s, ohne index_col=.. Wall time: 18.5s
-                data = pd.read_table(dataIndir+'/'+file, sep=';', skiprows=7, 
+                startzeit = pd.read_table(dataIndir+'/'+file, nrows=1, sep=';', skiprows=7, 
                          decimal =',', usecols= range(6),
                          header=None, names =datanames, date_parser =date_converter_CLUM_v1,
                          parse_dates=[0], index_col='time')
                 
-                
 
-                    
-                if data.index[0] in processedfiles.startzeit:
-                    #in duplikat archivieren
-                    archivefile=Archive_original_Datafiles(file,dataIndir, dataDuplikat) 
-                    print('Daten aus diesem Zeitraum wurden bereits analysiert')
-                else:
-                    #sdata = data.to_period(freq='ms')
+                startzeitdifferenzen= startzeit.index[0] - processedfiles.startzeit
+               
+                if processedfiles.startzeit.empty or startzeitdifferenzen.abs().min() > timedelta(0,60):
+                    data = pd.read_table(dataIndir+'/'+file, sep=';', skiprows=7, 
+                         decimal =',', usecols= range(6),
+                         header=None, names =datanames, date_parser =date_converter_CLUM_v1,
+                         parse_dates=[0], index_col='time')
                     # zippt und archiviert die Datenfiles in 'dataOriginal'-Directory
                     archivefile=Archive_original_Datafiles(file,dataIndir, dataOriginal) 
     
@@ -188,11 +187,15 @@ try:
                         
                     #generieren der Winddaten (Stärke und Richtung) für die ZAMG
                     wind = data.ix[:, ['wind_v', 'wind_Phi']]
-                    # (1) bestimmen der 2sec Boe = Mittelwert innerhalb von 2 sec
+                    # (1) bestimmen der 2sec Boe = Mittelwert von ['wind_v', 'wind_Phi'] innerhalb von 2 sec
                     wind2s = wind.resample('2s', how = 'mean')
-                    # (2) Max der Boen innerhalb von 10min (hier wird ein Wert alle 2 min geschrieben)
+                    # (2) Max der Boen innerhalb von 1min (hier wird ein Wert alle 1 min geschrieben)
                     wind1min = wind2s.groupby(pd.TimeGrouper('1min')).agg(lambda wind2s: wind2s.loc[wind2s['wind_v'].idxmax(), :])
-                    wind1min.to_csv('wind1min.csv', mode='a', sep=',', header= False, index=True, line_terminator='\n')
+                    wind1min.to_csv('wind_pre.csv', mode='a', sep=',', header= False, index=True, line_terminator='\n')
+                else:
+                    #in duplikat archivieren
+                    archivefile=Archive_original_Datafiles(file,dataIndir, dataDuplikat) 
+                    print('Datenfile', archivefile, 'wurde bereits analysiert und wird in dataDuplikat verschoben')
                     
         if not os.listdir(dataIndir):
             print('Waiting for Datafiles..., to stop Program press Control-c')
