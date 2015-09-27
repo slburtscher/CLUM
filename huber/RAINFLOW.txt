@@ -1,0 +1,88 @@
+*
+      PROGRAM RAINFLOW
+*
+      INTEGER NY0(100000),NY(100000)
+      REAL Y0(100000),Y(100000)
+*
+* EINLESEN DER DATEN
+*
+   20 FORMAT(2I10,I6,2F10.4)
+   22 FORMAT(2I10,6X,20X,I6,2F10.4)
+*
+      OPEN(1,FILE='F-G')
+*
+      N=1
+  100 READ(1,*,END=110) NY0(N),Y0(N)
+      NY(N)=NY0(N)
+      Y(N)=Y0(N)
+      N=N+1
+      GOTO 100
+  110 CONTINUE
+      N0=N-1
+*
+      CLOSE(1)
+*
+* AUSSORTIEREN DER VOLLSCHLEIFEN
+*
+      OPEN(2,FILE='F-H')
+*
+      N=N0
+      K=0
+*
+  200 CONTINUE
+*
+      DO 220 I=1,N-3
+*
+      Y1=Y(I)
+      Y2=Y(I+1)
+      Y3=Y(I+2)
+      Y4=Y(I+3)
+*
+      LOOP=0
+      IF (Y1.LE.Y3 .AND. Y3.LE.Y2 .AND. Y2.LE.Y4) LOOP=1
+      IF (Y1.GE.Y3 .AND. Y3.GE.Y2 .AND. Y2.GE.Y4) LOOP=1
+*
+      IF (LOOP.EQ.1) THEN
+*
+      DY1=ABS(Y2-Y1)
+      DY2=ABS(Y3-Y2)
+      DY3=ABS(Y4-Y3)
+*
+      IF (DY2.LE.DY1 .AND. DY2.LE.DY3) THEN
+*
+      K=K+1
+      WRITE(2,20) NY(I+1),NY(I+2),K,Y2,Y3
+*
+      DO 210 J=I+3,N
+      Y(J-2)=Y(J)
+      NY(J-2)=NY(J)
+  210 CONTINUE
+*
+      N=N-2
+      IF (N.LT.4) GOTO 250
+*
+      GOTO 200
+*
+      ENDIF
+*
+      ENDIF
+*
+  220 CONTINUE
+*
+  250 CONTINUE
+*
+* AUSGABE DER NICHTGESCHLOSSENEN SCHLEIFEN
+*
+      K=0
+      WRITE(2,*)
+*
+      DO 270 I=1,N-1
+      K=K+1
+      WRITE(2,22) NY(I),NY(I+1),K,Y(I),Y(I+1)
+  270 CONTINUE
+*
+      CLOSE(2)
+*
+      END
+*
+
