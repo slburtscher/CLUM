@@ -122,12 +122,12 @@ try:
                     
                     # Berechnen der Spannungen in den jeweiligen Segmenten
                     ## ANGABEN siehe [1] Seite 1
-                    Phi_Offset_y =0 # Winkel in RAD zwischen Norden und y-Achse im Gegenzeigersinn
+                    Phi_Offset_y =np.pi/2 # Winkel in RAD zwischen Norden und y-Achse im Gegenzeigersinn
                     r_a = 800  # mm Aussenradius
                     r_i = 790  # mm Innenradius
                     I = (r_a**4 -r_i**4)*np.pi/4 # [1] Gl.2
                     A = (r_a**2-r_i**2)*np.pi    # [1] Gl.3
-                    N = 0 # Eigengewicht in N und Druck NEGATIV!!
+                    N =0# -4995100 # Eigengewicht in N und Druck NEGATIV!!
                     # Dehnungen zufolge Normalkraft sind schon eingeprägt, Doku [1] Gl. 5 & 6 in [Nmm]
                     data['M_z'] = DataFrame(-I/r_a*(210000*data.DMS1), index=data.index) 
                     data['M_y'] = DataFrame( I/r_a*(210000*data.DMS2), index=data.index) 
@@ -140,17 +140,19 @@ try:
                     data.Phi_Sig1 = Angle_0bis2PI(data.Phi_Sig1)
                     data.Phi_Sig2 = Angle_0bis2PI(data.Phi_Sig2)
                     
-                    #  -np.pi/2 
-                    ## Segmente von 0 bis 7 [1] s.5
+                    # Segmente von 0 bis 7 [1] s.5
                     Sektor_anz= 8
                     Sektor = np.arange(0,Sektor_anz, 1)
                     for Sek in Sektor:
                         data['Phi_sek_y'] = 2*np.pi/Sektor_anz*(Sek)- Phi_Offset_y # [1] Gl. 10
+                        data.Phi_sek_y = Angle_0bis2PI(data.Phi_sek_y)
+                        print('Phi[', Sek,']:', data.Phi_sek_y)
                         ## CHECK!! Absolute Value!! eine def schreiben für Phi zwischen 0 und 2 pi, acuh für Phi_Sig1, 2 anwenden
                         data.Phi_sek_y.where((data.Phi_sek_y - data.Phi_Sig1).abs() > np.pi/Sektor_anz, other= data.Phi_Sig1, inplace=True)
                         data.Phi_sek_y.where((data.Phi_sek_y - data.Phi_Sig2).abs() > np.pi/Sektor_anz, other= data.Phi_Sig2, inplace=True)
+                        print('Phi[', Sek,']:', data.Phi_sek_y)                        
                         Sig = DataFrame(N/A + r_a/I*(data.M_y*np.sin(data.Phi_sek_y)- data.M_z*np.cos(data.Phi_sek_y))) # [1] Gl.7
-                        print('Sig[', Sek,']:', Sig)
+                        #print('Sig[', Sek,']:', Sig)
                         # Klassieren, Rainflow
                         ## ANGABEN                    
                         MW_oben = 250    # obere Grenze der Messdwerte bzw. der Klassierung
