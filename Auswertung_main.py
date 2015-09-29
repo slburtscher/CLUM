@@ -84,6 +84,7 @@ def Angle_0bis2PI(Phi):
 '''
 Beginn des Hauptprogramms
 '''
+Kontrolle = True
 # Einlesen der Informationen zu den Daten die in einem früheren Lauf analysiert wurden falls diese vorhanden sind
 try:
     processedfiles = pd.read_table('DatafileTable.csv', sep=',', header=0, parse_dates=['startzeit', 'endzeit']) # , index_col='startzeit'
@@ -141,17 +142,17 @@ try:
                     data.Phi_Sig2 = Angle_0bis2PI(data.Phi_Sig2)
                     
                     # Segmente von 0 bis 7 [1] s.5
+                    ##ANGABEN
                     Sektor_anz= 8
                     Sektor = np.arange(0,Sektor_anz, 1)
                     for Sek in Sektor:
                         data['Phi_sek_y'] = 2*np.pi/Sektor_anz*(Sek)- Phi_Offset_y # [1] Gl. 10
                         data.Phi_sek_y = Angle_0bis2PI(data.Phi_sek_y)
-                        print('Phi[', Sek,']:', data.Phi_sek_y)
                         ## CHECK!! Absolute Value!! eine def schreiben für Phi zwischen 0 und 2 pi, acuh für Phi_Sig1, 2 anwenden
                         data.Phi_sek_y.where((data.Phi_sek_y - data.Phi_Sig1).abs() > np.pi/Sektor_anz, other= data.Phi_Sig1, inplace=True)
                         data.Phi_sek_y.where((data.Phi_sek_y - data.Phi_Sig2).abs() > np.pi/Sektor_anz, other= data.Phi_Sig2, inplace=True)
-                        print('Phi[', Sek,']:', data.Phi_sek_y)                        
-                        Sig = DataFrame(N/A + r_a/I*(data.M_y*np.sin(data.Phi_sek_y)- data.M_z*np.cos(data.Phi_sek_y))) # [1] Gl.7
+                        
+                        data['Sig'] = DataFrame(N/A + r_a/I*(data.M_y*np.sin(data.Phi_sek_y)- data.M_z*np.cos(data.Phi_sek_y))) # [1] Gl.7
                         #print('Sig[', Sek,']:', Sig)
                         # Klassieren, Rainflow
                         ## ANGABEN                    
@@ -159,13 +160,20 @@ try:
                         MW_unten = 0  # untere Grenze der Messdwerte bzw. der Klassierung
                         N_Klassen = 50  # Anzahl der Klassen
                         Rueckstellw = (MW_oben - MW_unten) / N_Klassen * 1.1# Rückstellwert =Klassenbreit *Faktor, mind 2.5% Messwertbreite
-                        # wenn der Zeitindex dabei sein soll: x_axis = data.index 
+                        # wenn der Zeitindex dabei sein soll: 
                         # lookahead = 10 umstellen!!
-                        peaks, max_peaks, min_peaks = peakdetect.peakdetect(Sig, lookahead = 1, delta = Rueckstellw)                      
+                        peaks, max_peaks, min_peaks = peakdetect.peakdetect(data.Sig, x_axis = data.index, lookahead = 1, delta = Rueckstellw)                      
                         ## Rainflow                        
                         # binning 
                         #print('peak:',peaks )
                         # Sig.iloc[peaks[:,0]]
+                        if Kontrolle == True:
+                            s = 'Phi_sek_y_Sek_SEK'
+                            data[s.replace('SEK', str(Sek))]= data.Phi_sek_y
+                            s = 'Sig_Sek_SEK'
+                            data[s.replace('SEK', str(Sek))]= data.Sig
+                            s = 'Peaks_Sek_SEK'
+                            #data[s.replace('SEK', str(Sek))]= peaks
                                         
                     
                     ######################################################################################
@@ -195,7 +203,7 @@ try:
                     print(startzeit.index[0],file, 'DOPPELT-Verschieben-> dataDuplikat', archivefile)
                     
         if not os.listdir(dataIndir):
-            print('Waiting for Datafiles..., to stop Program press Control-c')
+            print(datetime.now().time(), ':Waiting for Datafiles..., stop: Control-c')
             time.sleep(10)
 except KeyboardInterrupt:
     print('interrupted by Control-c!')
