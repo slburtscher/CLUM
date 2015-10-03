@@ -183,8 +183,8 @@ def peakdetect(y_axis, x_axis = None, lookahead = 300, delta=0):
     #max_peaks = np.array(max_peaks)
     #min_peaks = np.array(min_peaks)
     #peaks = np.array(peaks)
-    print('y:', y)
-    print('PEAKS:', peaks)
+    #print('y:', y)
+    #print('PEAKS:', peaks)
     return [peaks, max_peaks, min_peaks]
     
     

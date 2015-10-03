@@ -16,7 +16,9 @@ wind_pre = pd.read_table('wind_pre.csv', sep=',', names= ['time', 'wind_v', 'win
                           header=None, date_parser =date_converter_1, parse_dates=[0], index_col='time')
 
 #Checks an den Daten
-if wind_pre.index.is_unique == False: print('WARN: Index ist nicht UNIQUE')
+if wind_pre.index.is_unique == False: 
+    print('WARN: Index ist nicht UNIQUE')
+    wind_pre=wind_pre.index.drop_duplicates()
 if wind_pre.index.is_monotonic == False: 
     print('WARN: Index ist nicht MONOTONIC')    
     #wind_pre = wind_pre.index.order()

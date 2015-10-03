@@ -84,7 +84,7 @@ def Angle_0bis2PI(Phi):
 '''
 Beginn des Hauptprogramms
 '''
-Kontrolle = True
+Kontrolle = False
 # Einlesen der Informationen zu den Daten die in einem früheren Lauf analysiert wurden falls diese vorhanden sind
 try:
     processedfiles = pd.read_table('DatafileTable.csv', sep=',', header=0, parse_dates=['startzeit', 'endzeit']) # , index_col='startzeit'
@@ -120,6 +120,18 @@ try:
                          decimal =',', usecols= range(6),
                          header=None, names =datanames, date_parser =date_converter_CLUM_v1,
                          parse_dates=[0], index_col='time')
+                    # Nachbearbeiten der Rohdaten
+                    Offset_DMS1 = -162  # Nullpunktverschiebung des DMS
+                    Offset_DMS2 = 194  # Nullpunktverschiebung des DMS
+                    ## DMS Nullsetzen
+                    data.DMS1 = data.DMS1 - Offset_DMS1
+                    data.DMS2 = data.DMS2 - Offset_DMS2
+
+                    
+                    ### Kontrolle der Daten 
+                    # driften die Nullpunkt(e)?
+                    #Spikes?
+                    #data.wind_v
                     
                     # Berechnen der Spannungen in den jeweiligen Segmenten
                     ## ANGABEN siehe [1] Seite 1
@@ -130,8 +142,9 @@ try:
                     A = (r_a**2-r_i**2)*np.pi    # [1] Gl.3
                     N =0# -4995100 # Eigengewicht in N und Druck NEGATIV!!
                     # Dehnungen zufolge Normalkraft sind schon eingeprägt, Doku [1] Gl. 5 & 6 in [Nmm]
-                    data['M_z'] = DataFrame(-I/r_a*(210000*data.DMS1), index=data.index) 
-                    data['M_y'] = DataFrame( I/r_a*(210000*data.DMS2), index=data.index) 
+                    # Dehnungen des DMS wurden schon in Spannungen [N/mm2] ungerechnet
+                    data['M_z'] = DataFrame(-I/r_a*(data.DMS1), index=data.index) 
+                    data['M_y'] = DataFrame( I/r_a*(data.DMS2), index=data.index) 
                     #data.drop(['DMS1','DMS2'], axis=1, inplace=True)
                     data['Phi_Nl_y'] = np.arctan(data.M_z/data.M_y) # Winkel Nullinie-Y-Achse [1] Gl.8 in rad
                     data.Phi_Nl_y.fillna(value=np.pi/2, inplace=True) # M_y =0 ergibt NaN, wird durch PI/2 eresetzt
@@ -153,20 +166,25 @@ try:
                         data.Phi_sek_y.where((data.Phi_sek_y - data.Phi_Sig2).abs() > np.pi/Sektor_anz, other= data.Phi_Sig2, inplace=True)
                         
                         data['Sig'] = DataFrame(N/A + r_a/I*(data.M_y*np.sin(data.Phi_sek_y)- data.M_z*np.cos(data.Phi_sek_y))) # [1] Gl.7
+                        ''' wird nun in der Subroutine erledigt                        
                         #print('Sig[', Sek,']:', Sig)
                         # Klassieren, Rainflow
                         ## ANGABEN                    
-                        MW_oben = 250    # obere Grenze der Messdwerte bzw. der Klassierung
-                        MW_unten = 0  # untere Grenze der Messdwerte bzw. der Klassierung
-                        N_Klassen = 50  # Anzahl der Klassen
-                        Rueckstellw = (MW_oben - MW_unten) / N_Klassen * 1.1# Rückstellwert =Klassenbreit *Faktor, mind 2.5% Messwertbreite
-                        # wenn der Zeitindex dabei sein soll: 
+                        X_min_RF =-250  # Minimum der "Mittellast" für Klassierung
+                        X_max_RF = 250  # Maximum der "Mittellast" für Klassierung
+                        Y_min_RF = 0    # Minimum der "Amplitude" für Klassierung
+                        Y_max_RF = 250  # Maximum der "Amplitude" für Klassierung
+                        Anz_bins_RF = 50  # Anzahl der Klassen (=bins) für X und Y
+                        # Detect peaks (peakdetect) of data.Sig bzw. Y_***_RF
+                        Rueckstellw = (Y_max_RF - Y_min_RF) / Anz_bins_RF * 1.1# Rückstellwert =Klassenbreite *Faktor, mind 2.5% Messwertbreite
+                        # wenn der Zeitindex dabei sein soll: x_axis = data.index, 
                         # lookahead = 10 umstellen!!
-                        peaks, max_peaks, min_peaks = peakdetect.peakdetect(data.Sig, x_axis = data.index, lookahead = 1, delta = Rueckstellw)                      
+                        peaks, max_peaks, min_peaks = peakdetect.peakdetect(data.Sig, lookahead = 1, delta = Rueckstellw)                      
                         ## Rainflow                        
                         # binning 
                         #print('peak:',peaks )
                         # Sig.iloc[peaks[:,0]]
+                        '''
                         if Kontrolle == True:
                             s = 'Phi_sek_y_Sek_SEK'
                             data[s.replace('SEK', str(Sek))]= data.Phi_sek_y
